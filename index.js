@@ -197,5 +197,100 @@ app.get('/api/assets', verifyToken, verifyHR, async (req, res) => {
 
 
 
+
+
+
+
+
+
+
+// Employee requests asset
+app.post('/api/requests', verifyToken, async (req, res) => {
+  try {
+    const { assetId, note } = req.body;
+    const asset = await Asset.findById(assetId);
+    if (!asset || asset.availableQuantity <= 0) return res.status(400).json({ message: 'Asset not available' });
+    const reqDoc = new Request({
+      assetId,
+      assetName: asset.productName,
+      assetType: asset.productType,
+      requesterName: req.user.name,
+      requesterEmail: req.user.email,
+      hrEmail: asset.hrEmail,
+      companyName: asset.companyName,
+      note,
+    });
+    await reqDoc.save();
+    res.json({ message: 'Request submitted', request: reqDoc });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Request failed', error: err.message });
+  }
+});
+
+// HR: view all requests
+app.get('/api/requests', verifyToken, verifyHR, async (req, res) => {
+  try {
+    const requests = await Request.find({ hrEmail: req.user.email, companyName: req.user.companyName });
+    res.json(requests);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Fetch requests failed', error: err.message });
+  }
+});
+
+// HR: approve request
+app.post('/api/requests/:id/approve', verifyToken, verifyHR, async (req, res) => {
+  try {
+    const reqId = req.params.id;
+    const reqDoc = await Request.findById(reqId);
+    if (!reqDoc) return res.status(404).json({ message: 'Request not found' });
+    if (reqDoc.requestStatus !== 'pending') return res.status(400).json({ message: 'Already processed' });
+
+    const asset = await Asset.findById(reqDoc.assetId);
+    if (!asset || asset.availableQuantity <= 0) return res.status(400).json({ message: 'Asset not available' });
+
+    asset.availableQuantity -= 1;
+    await asset.save();
+
+    reqDoc.requestStatus = 'approved';
+    reqDoc.approvalDate = new Date();
+    reqDoc.processedBy = req.user.email;
+    await reqDoc.save();
+
+    const assigned = new AssignedAsset({
+      assetId: asset._id,
+      assetName: asset.productName,
+      assetImage: asset.productImage,
+      assetType: asset.productType,
+      employeeEmail: reqDoc.requesterEmail,
+      employeeName: reqDoc.requesterName,
+      hrEmail: req.user.email,
+      companyName: asset.companyName,
+    });
+    await assigned.save();
+
+    res.json({ message: 'Request approved and asset assigned', assigned });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Approve failed', error: err.message });
+  }
+});
+
+// Get employee’s assigned assets
+app.get('/api/my-assets', verifyToken, async (req, res) => {
+  try {
+    const assigned = await AssignedAsset.find({ employeeEmail: req.user.email });
+    res.json(assigned);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Fetch assigned assets failed', error: err.message });
+  }
+});
+
+
+
+
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
