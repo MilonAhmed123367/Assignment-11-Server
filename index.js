@@ -43,6 +43,21 @@ const userSchema = new mongoose.Schema({
 
 
 
+const assetSchema = new mongoose.Schema({
+  productName: String,
+  productImage: String,
+  productType: { type: String, enum: ['Returnable', 'Non-returnable'] },
+  productQuantity: Number,
+  availableQuantity: Number,
+  dateAdded: { type: Date, default: Date.now },
+  hrEmail: String,
+  companyName: String,
+});
+
+const Asset = mongoose.model('Asset', assetSchema);
+
+
+
 app.get('/', (req, res) => res.send('API is running'));
 
 const PORT = process.env.PORT || 5000;
