@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const { default: mongoose } = require('mongoose');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 app.use(express.json());
@@ -160,6 +161,38 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+
+// Add Asset (only HR)
+app.post('/api/assets', verifyToken, verifyHR, async (req, res) => {
+  try {
+    const { productName, productImage, productType, productQuantity } = req.body;
+    const asset = new Asset({
+      productName,
+      productImage,
+      productType,
+      productQuantity,
+      availableQuantity: productQuantity,
+      hrEmail: req.user.email,
+      companyName: req.user.companyName,
+    });
+    await asset.save();
+    res.json({ message: 'Asset added', asset });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Add asset failed', error: err.message });
+  }
+});
+
+// List assets (for HR)
+app.get('/api/assets', verifyToken, verifyHR, async (req, res) => {
+  try {
+    const assets = await Asset.find({ hrEmail: req.user.email });
+    res.json(assets);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Fetch assets failed', error: err.message });
+  }
+});
 
 
 
