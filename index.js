@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { default: mongoose } = require('mongoose');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 app.use(express.json());
@@ -93,7 +94,23 @@ const AssignedAsset = mongoose.model('AssignedAsset', assignedAssetSchema);
 
 
 
+// / --- Middleware for auth & role ---
 
+const verifyToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'No token provided' });
+  jwt.verify(token, process.env.JWT_SECRET || '', (err, decoded) => {
+    if (err) return res.status(403).json({ message: 'Invalid token' });
+    req.user = decoded;
+    next();
+  });
+};
+
+const verifyHR = (req, res, next) => {
+  if (req.user.role !== 'hr') return res.status(403).json({ message: 'Require HR role' });
+  next();
+};
 
 
 
