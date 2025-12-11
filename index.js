@@ -54,7 +54,46 @@ const assetSchema = new mongoose.Schema({
   companyName: String,
 });
 
+
+
+const requestSchema = new mongoose.Schema({
+  assetId: mongoose.Schema.Types.ObjectId,
+  assetName: String,
+  assetType: String,
+  requesterName: String,
+  requesterEmail: String,
+  hrEmail: String,
+  companyName: String,
+  requestDate: { type: Date, default: Date.now },
+  approvalDate: Date,
+  requestStatus: { type: String, enum: ['pending', 'approved', 'rejected', 'returned'], default: 'pending' },
+  note: String,
+  processedBy: String,
+});
+
+const assignedAssetSchema = new mongoose.Schema({
+  assetId: mongoose.Schema.Types.ObjectId,
+  assetName: String,
+  assetImage: String,
+  assetType: String,
+  employeeEmail: String,
+  employeeName: String,
+  hrEmail: String,
+  companyName: String,
+  assignmentDate: { type: Date, default: Date.now },
+  returnDate: Date,
+  status: { type: String, enum: ['assigned', 'returned'], default: 'assigned' },
+});
+
+const User = mongoose.model('User', userSchema);
 const Asset = mongoose.model('Asset', assetSchema);
+const Request = mongoose.model('Request', requestSchema);
+const AssignedAsset = mongoose.model('AssignedAsset', assignedAssetSchema);
+
+
+
+
+
 
 
 
