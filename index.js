@@ -15,11 +15,33 @@ if (!uri) {
 }
 
 mongoose.connect(uri)
-  .then(() => console.log("✅ MongoDB connected"))
+  .then(() => console.log("MongoDB connected"))
   .catch(err => {
     console.error("❌ MongoDB connection error:", err);
     process.exit(1);
   });
+
+
+
+// --- Mongoose models ---
+
+const userSchema = new mongoose.Schema({
+  name: String,
+  email: { type: String, unique: true },
+  password: String,
+  role: { type: String, enum: ['employee', 'hr'], default: 'employee' },
+  companyName: String,
+  companyLogo: String,
+  packageLimit: Number,
+  currentEmployees: Number,
+  subscription: String,
+  dateOfBirth: Date,
+  profileImage: String,
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+});
+
+
 
 app.get('/', (req, res) => res.send('API is running'));
 
