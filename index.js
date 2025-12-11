@@ -113,8 +113,56 @@ const verifyHR = (req, res, next) => {
 };
 
 
+// --- Routes ---
+app.get('/', (req, res) => {
+  res.send('API is running');
+});
 
-app.get('/', (req, res) => res.send('API is running'));
+
+// Register
+app.post('/api/register', async (req, res) => {
+  try {
+    const { name, email, password, dateOfBirth, role, companyName, companyLogo } = req.body;
+    const hashed = await bcrypt.hash(password, 10);
+    const user = new User({
+      name,
+      email,
+      password: hashed,
+      role: role === 'hr' ? 'hr' : 'employee',
+      dateOfBirth,
+      ...(role === 'hr' ? { companyName, companyLogo, packageLimit: 5, currentEmployees: 0, subscription: 'basic' } : {}),
+    });
+    await user.save();
+    res.json({ message: 'User registered' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Registration failed', error: err.message });
+  }
+});
+
+// Login
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: 'User not found' });
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(400).json({ message: 'Invalid password' });
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role, companyName: user.companyName },
+      process.env.JWT_SECRET || '',
+      { expiresIn: '1d' }
+    );
+    res.json({ token, user: { name: user.name, email: user.email, role: user.role, companyName: user.companyName } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Login failed', error: err.message });
+  }
+});
+
+
+
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
