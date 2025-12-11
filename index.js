@@ -1,25 +1,12 @@
-const express = require('express')
-const cors = require('cors');
-const app = express()
 require('dotenv').config();
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const express = require('express');
+const cors = require('cors');
 
-
-const port = process.env.PORT || 3000
-
-
-// middleware
-
+const app = express();
 app.use(express.json());
 app.use(cors());
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@milon.ycr1g5h.mongodb.net/?appName=Milon`;
+app.get('/', (req, res) => res.send('API is running'));
 
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
-});
-
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
