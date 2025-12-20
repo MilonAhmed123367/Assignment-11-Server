@@ -6,7 +6,13 @@ const cors = require("cors");
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+    origin: [
+      "http://localhost:5173",
+      "https://your-frontend-live-link.vercel.app"  
+    ],
+    credentials: true
+}));
 
 /* ================= DB CONNECT ================= */
 mongoose
