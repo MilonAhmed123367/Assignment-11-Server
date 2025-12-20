@@ -9,7 +9,7 @@ app.use(express.json());
 app.use(cors({
     origin: [
       "http://localhost:5173",
-      "https://your-frontend-live-link.vercel.app"  
+      "assignment-11-server-git-main-milon-ahmeds-projects.vercel.app"  
     ],
     credentials: true
 }));
