@@ -6,10 +6,16 @@ const cors = require("cors");
 
 const app = express();
 
-// কোন অপশন ছাড়া শুধু cors() দিলে ভেরসেল ডিফল্টভাবে সব এলাউ করে দেয়
-app.use(cors()); 
+app.use(cors({
+  origin: ["http://localhost:5173", "https://আপনার-ফ্রন্টএন্ড-লিঙ্ক.vercel.app"],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
+}));
+
 app.use(express.json());
 
+app.options("*", cors());
 
 
 /* ================= DB CONNECT ================= */
@@ -24,8 +30,8 @@ const userSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   password: String,
   role: { type: String, enum: ["employee", "hr"] },
-  companyName: String, 
-  companyLogo: String, 
+  companyName: String,
+  companyLogo: String,
   packageLimit: { type: Number, default: 5 },
   currentEmployees: { type: Number, default: 0 },
   subscription: { type: String, default: "basic" },
@@ -207,7 +213,7 @@ app.get("/api/my-team", async (req, res) => {
     if (!currentUser) return res.status(404).send({ message: "User not found" });
     const hrEmail = currentUser.role === "hr" ? currentUser.email : currentUser.affiliations?.[0]?.hrEmail;
     if (!hrEmail) return res.json([]);
-    const team = await User.find({ $or: [ { email: { $regex: new RegExp(`^${hrEmail}$`, "i") } }, { "affiliations.hrEmail": { $regex: new RegExp(`^${hrEmail}$`, "i") } } ] }).select("-password");
+    const team = await User.find({ $or: [{ email: { $regex: new RegExp(`^${hrEmail}$`, "i") } }, { "affiliations.hrEmail": { $regex: new RegExp(`^${hrEmail}$`, "i") } }] }).select("-password");
     res.json(team);
   } catch (err) { res.status(500).send({ message: "Server error" }); }
 });
