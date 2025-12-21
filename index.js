@@ -6,24 +6,26 @@ const cors = require("cors");
 
 const app = express();
 
-// ১. CORS কনফিগারেশন
+// ১. CORS কনফিগারেশন - এটি কেবল একবারই ব্যবহার করুন
 app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "https://assignment-11-server-git-main-milon-ahmeds-projects.vercel.app"
-  ],
+  origin: ["http://localhost:5173", "https://assignment-11-server-git-main-milon-ahmeds-projects.vercel.app"],
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 }));
 
 app.use(express.json());
 
-// ২. ম্যানুয়াল হেডার সেট করা (Vercel-এর প্রাক-ফ্লাইট রিকোয়েস্টের জন্য)
+// ২. প্রি-ফ্লাইট (OPTIONS) রিকোয়েস্ট হ্যান্ডেলার
+app.options("*", cors());
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin === "http://localhost:5173") {
+  const allowedOrigins = ["http://localhost:5173", "https://assignment-11-server-git-main-milon-ahmeds-projects.vercel.app"];
+
+  if (allowedOrigins.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
   }
+
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
   res.header("Access-Control-Allow-Credentials", "true");
