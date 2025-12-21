@@ -6,18 +6,21 @@ const cors = require("cors");
 
 const app = express();
 app.use(express.json());
+
+
 app.use(cors({
   origin: [
     "http://localhost:5173",
     "https://assignment-11-server-git-main-milon-ahmeds-projects.vercel.app"
   ],
-  credentials: true
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 }));
 
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "http://localhost:5173");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
   res.header("Access-Control-Allow-Credentials", "true");
 
   if (req.method === "OPTIONS") {
@@ -295,7 +298,7 @@ app.get("/api/my-assets", async (req, res) => {
     console.error("Error in /api/my-assets:", err);
     res.status(500).json({
       message: "Internal server error",
-      error: err.message 
+      error: err.message
     });
   }
 });
