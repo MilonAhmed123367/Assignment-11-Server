@@ -6,7 +6,7 @@ const cors = require("cors");
 
 const app = express();
 
-// ১. CORS কনফিগারেশন
+// ১. CORS কনফিগারেশন (সরাসরি এবং সহজ)
 app.use(cors({
   origin: ["http://localhost:5173", "https://assignment-11-server-git-main-milon-ahmeds-projects.vercel.app"],
   credentials: true,
@@ -15,23 +15,23 @@ app.use(cors({
 
 app.use(express.json());
 
-// এরর ফিক্স: app.options("*", ...) এর বদলে সরাসরি এটি ব্যবহার করুন
-app.options('/api/:path*', cors()); 
-
+// ২. ঝামেলাপূর্ণ app.options("*") বা app.options("/api/:path*") একদম বাদ দিন।
+// তার বদলে এই সিম্পল মিডলওয়্যারটি ব্যবহার করুন:
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
   const allowedOrigins = ["http://localhost:5173", "https://assignment-11-server-git-main-milon-ahmeds-projects.vercel.app"];
-  
+  const origin = req.headers.origin;
+
   if (allowedOrigins.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
   }
-  
+
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
   res.header("Access-Control-Allow-Credentials", "true");
 
+  // প্রি-ফ্লাইট রিকোয়েস্টের জন্য সরাসরি রেসপন্স
   if (req.method === "OPTIONS") {
-    return res.status(200).end();
+    return res.sendStatus(200);
   }
   next();
 });
