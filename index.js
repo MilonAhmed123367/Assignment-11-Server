@@ -6,7 +6,7 @@ const cors = require("cors");
 
 const app = express();
 
-// ১. CORS কনফিগারেশন - এটি কেবল একবারই ব্যবহার করুন
+// ১. CORS কনফিগারেশন
 app.use(cors({
   origin: ["http://localhost:5173", "https://assignment-11-server-git-main-milon-ahmeds-projects.vercel.app"],
   credentials: true,
@@ -15,26 +15,28 @@ app.use(cors({
 
 app.use(express.json());
 
-// ২. প্রি-ফ্লাইট (OPTIONS) রিকোয়েস্ট হ্যান্ডেলার
-app.options("*", cors());
+// এরর ফিক্স: app.options("*", ...) এর বদলে সরাসরি এটি ব্যবহার করুন
+app.options('/api/:path*', cors()); 
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowedOrigins = ["http://localhost:5173", "https://assignment-11-server-git-main-milon-ahmeds-projects.vercel.app"];
-
+  
   if (allowedOrigins.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
   }
-
+  
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
   res.header("Access-Control-Allow-Credentials", "true");
 
   if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
+    return res.status(200).end();
   }
   next();
 });
+
+
 /* ================= DB CONNECT ================= */
 mongoose
   .connect(process.env.MONGO_URI)
@@ -448,8 +450,9 @@ app.put("/api/profile", async (req, res) => {
   }
 });
 
+const port = process.env.PORT || 5000;
 if (process.env.NODE_ENV !== 'production') {
-  app.listen(5000, () => console.log("Server running on port 5000"));
+    app.listen(port, () => console.log(`Server running on port ${port}`));
 }
 
 module.exports = app;
