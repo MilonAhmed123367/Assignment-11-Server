@@ -6,8 +6,9 @@ const cors = require("cors");
 
 const app = express();
 
+// ১. CORS Configuration (Fixed for Vercel)
 app.use(cors({
-  origin: ["http://localhost:5173", "https://আপনার-ফ্রন্টএন্ড-লিঙ্ক.vercel.app"],
+  origin: ["http://localhost:5173", "https://assignment-11-server-git-main-milon-ahmeds-projects.vercel.app"],
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
@@ -15,8 +16,8 @@ app.use(cors({
 
 app.use(express.json());
 
-app.options("*", cors());
-
+// ২. Fixing PathError for Vercel (Asterisk issue)
+app.options("(.*)", cors());
 
 /* ================= DB CONNECT ================= */
 mongoose
@@ -82,7 +83,7 @@ const Request = mongoose.model("Request", requestSchema);
 
 /* ================= ROUTES ================= */
 
-app.get("/", (req, res) => res.send("Server running..."));
+app.get("/", (req, res) => res.send("Server running perfectly..."));
 
 // --- AUTH ---
 app.post("/api/register", async (req, res) => {
@@ -112,7 +113,7 @@ app.post("/api/google-register", async (req, res) => {
   try {
     const user = req.body;
     const existingUser = await User.findOne({ email: user.email.toLowerCase() });
-    if (existingUser) return res.send({ message: "User logged in" });
+    if (existingUser) return res.send(existingUser);
 
     const newUser = new User({
       name: user.name,
@@ -123,7 +124,7 @@ app.post("/api/google-register", async (req, res) => {
       affiliations: []
     });
     const result = await newUser.save();
-    res.send(result);
+    res.status(201).send(result);
   } catch (error) { res.status(500).send({ message: "Server Error" }); }
 });
 
@@ -266,8 +267,6 @@ app.put("/api/profile", async (req, res) => {
 });
 
 const port = process.env.PORT || 5000;
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(port, () => console.log(`Server running on port ${port}`));
-}
+app.listen(port, () => console.log(`🚀 Server running on port ${port}`));
 
 module.exports = app;
