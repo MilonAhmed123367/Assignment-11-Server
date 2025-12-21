@@ -5,9 +5,8 @@ const bcrypt = require("bcryptjs");
 const cors = require("cors");
 
 const app = express();
-app.use(express.json());
 
-
+// ১. CORS কনফিগারেশন
 app.use(cors({
   origin: [
     "http://localhost:5173",
@@ -17,8 +16,14 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 }));
 
+app.use(express.json());
+
+// ২. ম্যানুয়াল হেডার সেট করা (Vercel-এর প্রাক-ফ্লাইট রিকোয়েস্টের জন্য)
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "http://localhost:5173");
+  const origin = req.headers.origin;
+  if (origin === "http://localhost:5173") {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
   res.header("Access-Control-Allow-Credentials", "true");
@@ -28,7 +33,6 @@ app.use((req, res, next) => {
   }
   next();
 });
-
 /* ================= DB CONNECT ================= */
 mongoose
   .connect(process.env.MONGO_URI)
