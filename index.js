@@ -6,27 +6,25 @@ const cors = require("cors");
 
 const app = express();
 
+// ১. একদম উপরে এই অংশটুকু দিন
 app.use(cors({
-  origin: ["http://localhost:5173", "https://assignment-11-server-git-main-milon-ahmeds-projects.vercel.app"],
+  origin: true, // এটি যেকোনো অরিজিনকে অ্যালাউ করবে (লোকাল এবং ভেরসেল)
   credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  optionsSuccessStatus: 200
 }));
 
-app.use(express.json());
-
+// ২. প্রি-ফ্লাইট রিকোয়েস্টের জন্য এই ছোট মিডলওয়্যারটি দিন
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  res.setHeader("Access-Control-Allow-Origin", origin || "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header("Access-Control-Allow-Origin", req.headers.origin);
   res.header("Access-Control-Allow-Credentials", "true");
-
   if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
+    return res.status(200).end();
   }
   next();
 });
-
+app.options("*", cors());
+app.use(express.json());
 
 /* ================= DB CONNECT ================= */
 mongoose
