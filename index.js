@@ -17,7 +17,6 @@ app.use(cors({
 app.use(express.json());
 
 // ২. Fixing PathError for Vercel (Asterisk issue)
-app.options("(.*)", cors());
 
 /* ================= DB CONNECT ================= */
 mongoose
