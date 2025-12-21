@@ -7,11 +7,11 @@ const cors = require("cors");
 const app = express();
 app.use(express.json());
 app.use(cors({
-    origin: [
-      "http://localhost:5173",
-      "assignment-11-server-git-main-milon-ahmeds-projects.vercel.app"  
-    ],
-    credentials: true
+  origin: [
+    "http://localhost:5173",
+    "https://assignment-11-server-git-main-milon-ahmeds-projects.vercel.app"
+  ],
+  credentials: true
 }));
 
 /* ================= DB CONNECT ================= */
@@ -122,9 +122,9 @@ app.post("/api/google-register", async (req, res) => {
       name: user.name,
       email: user.email.toLowerCase(),
       profileImage: user.photoURL,
-      role: "employee", 
+      role: "employee",
       subscription: "basic",
-      affiliations: [] 
+      affiliations: []
     });
 
     const result = await newUser.save(); // insertOne এর বদলে save()
@@ -213,18 +213,18 @@ app.post("/api/requests/:id/approve", async (req, res) => {
 
       await User.findOneAndUpdate(
         { email: employee.email },
-        { 
-          $push: { 
-            affiliations: { 
-              companyName: hr.companyName, 
+        {
+          $push: {
+            affiliations: {
+              companyName: hr.companyName,
               hrEmail: hr.email.toLowerCase()
-            } 
-          } 
+            }
+          }
         }
       );
 
       await User.findOneAndUpdate(
-        { email: hr.email }, 
+        { email: hr.email },
         { $inc: { currentEmployees: 1 } }
       );
     }
@@ -274,13 +274,21 @@ app.get("/api/my-assets", async (req, res) => {
     const { email } = req.query;
     if (!email) return res.status(400).json({ message: "Email is required" });
 
+    // ১. ডাটাবেজ থেকে রিকোয়েস্টগুলো খুঁজে বের করা
+    // এখানে Request হলো আপনার mongoose model
     const requests = await Request.find({
       requesterEmail: { $regex: new RegExp(`^${email}$`, "i") }
     }).sort({ requestDate: -1 });
 
-    res.json(requests);
+    // ২. যদি কোনো ডাটা না থাকে তবে খালি অ্যারে পাঠানো
+    res.json(requests || []);
   } catch (err) {
-    res.status(500).json({ message: "Internal server error" });
+    // টার্মিনালে আসল এরর দেখার জন্য নিচের লাইনটি জরুরি
+    console.error("Error in /api/my-assets:", err);
+    res.status(500).json({
+      message: "Internal server error",
+      error: err.message // এটি দিলে আপনি ব্রাউজারে আসল কারণ দেখতে পাবেন
+    });
   }
 });
 
@@ -399,8 +407,8 @@ app.get("/api/employees", async (req, res) => {
 
 app.put("/api/profile", async (req, res) => {
   try {
-    const { email } = req.query;  
-    const { name, profileImage } = req.body; 
+    const { email } = req.query;
+    const { name, profileImage } = req.body;
 
     if (!email) {
       return res.status(400).json({ message: "Email is required" });
@@ -409,7 +417,7 @@ app.put("/api/profile", async (req, res) => {
     const result = await User.findOneAndUpdate(
       { email: { $regex: new RegExp(`^${email}$`, "i") } },
       { $set: { name, profileImage } },
-      { new: true } 
+      { new: true }
     );
 
     if (!result) {
