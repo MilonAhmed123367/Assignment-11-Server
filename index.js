@@ -14,6 +14,18 @@ app.use(cors({
   credentials: true
 }));
 
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "http://localhost:5173");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.header("Access-Control-Allow-Credentials", "true");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 /* ================= DB CONNECT ================= */
 mongoose
   .connect(process.env.MONGO_URI)
@@ -274,20 +286,16 @@ app.get("/api/my-assets", async (req, res) => {
     const { email } = req.query;
     if (!email) return res.status(400).json({ message: "Email is required" });
 
-    // ১. ডাটাবেজ থেকে রিকোয়েস্টগুলো খুঁজে বের করা
-    // এখানে Request হলো আপনার mongoose model
     const requests = await Request.find({
       requesterEmail: { $regex: new RegExp(`^${email}$`, "i") }
     }).sort({ requestDate: -1 });
 
-    // ২. যদি কোনো ডাটা না থাকে তবে খালি অ্যারে পাঠানো
     res.json(requests || []);
   } catch (err) {
-    // টার্মিনালে আসল এরর দেখার জন্য নিচের লাইনটি জরুরি
     console.error("Error in /api/my-assets:", err);
     res.status(500).json({
       message: "Internal server error",
-      error: err.message // এটি দিলে আপনি ব্রাউজারে আসল কারণ দেখতে পাবেন
+      error: err.message 
     });
   }
 });
