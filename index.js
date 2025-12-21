@@ -6,17 +6,15 @@ const cors = require("cors");
 
 const app = express();
 
-// ১. CORS Configuration (Fixed for Vercel)
+// ১. সঠিক CORS কনফিগারেশন (যা ভেরসেলে কাজ করবে)
 app.use(cors({
-  origin: ["http://localhost:5173", "https://assignment-11-server-git-main-milon-ahmeds-projects.vercel.app"],
+  origin: true, // এটি আপনার লোকালহোস্ট এবং ভেরসেল দুইটাই অটোমেটিক হ্যান্ডেল করবে
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
 }));
 
 app.use(express.json());
-
-// ২. Fixing PathError for Vercel (Asterisk issue)
 
 /* ================= DB CONNECT ================= */
 mongoose
@@ -80,11 +78,11 @@ const User = mongoose.model("User", userSchema);
 const Asset = mongoose.model("Asset", assetSchema);
 const Request = mongoose.model("Request", requestSchema);
 
-/* ================= ROUTES ================= */
+/* ================= ALL ROUTES (আপনার ৪৫৮ লাইনের লজিক) ================= */
 
 app.get("/", (req, res) => res.send("Server running perfectly..."));
 
-// --- AUTH ---
+// --- AUTH ROUTES ---
 app.post("/api/register", async (req, res) => {
   try {
     const { name, email, password, role, companyName, companyLogo, dateOfBirth } = req.body;
@@ -127,11 +125,13 @@ app.post("/api/google-register", async (req, res) => {
   } catch (error) { res.status(500).send({ message: "Server Error" }); }
 });
 
-// --- HR: ASSET MANAGEMENT ---
+// --- ASSET ROUTES ---
 app.post("/api/assets", async (req, res) => {
-  const asset = new Asset({ ...req.body, availableQuantity: req.body.productQuantity });
-  await asset.save();
-  res.json(asset);
+  try {
+    const asset = new Asset({ ...req.body, availableQuantity: req.body.productQuantity });
+    await asset.save();
+    res.json(asset);
+  } catch (err) { res.status(400).json({ message: err.message }); }
 });
 
 app.get("/api/assets/hr/:email", async (req, res) => {
@@ -144,7 +144,7 @@ app.get("/api/assets/hr/:email", async (req, res) => {
   } catch (err) { res.status(500).json({ message: "Error" }); }
 });
 
-// --- REQUESTS ---
+// --- REQUEST ROUTES ---
 app.post("/api/requests", async (req, res) => {
   try {
     const newRequest = new Request({ ...req.body, requestStatus: "pending", requestDate: new Date() });
@@ -183,7 +183,7 @@ app.post("/api/requests/:id/reject", async (req, res) => {
   } catch (err) { res.status(500).json({ message: "Error" }); }
 });
 
-// --- DASHBOARD & TEAM ---
+// --- MY ASSETS & TEAM ---
 app.get("/api/my-assets", async (req, res) => {
   try {
     const requests = await Request.find({ requesterEmail: { $regex: new RegExp(`^${req.query.email}$`, "i") } }).sort({ requestDate: -1 });
@@ -199,12 +199,14 @@ app.delete("/api/requests/:id", async (req, res) => {
 });
 
 app.post("/api/return/:id", async (req, res) => {
-  const request = await Request.findById(req.params.id);
-  if (request.assetType !== "Returnable") return res.status(400).json({ message: "Non-returnable" });
-  request.requestStatus = "returned";
-  await request.save();
-  await Asset.findByIdAndUpdate(request.assetId, { $inc: { availableQuantity: 1 } });
-  res.json({ message: "Returned" });
+  try {
+    const request = await Request.findById(req.params.id);
+    if (request.assetType !== "Returnable") return res.status(400).json({ message: "Non-returnable" });
+    request.requestStatus = "returned";
+    await request.save();
+    await Asset.findByIdAndUpdate(request.assetId, { $inc: { availableQuantity: 1 } });
+    res.json({ message: "Returned" });
+  } catch (err) { res.status(500).json({ message: "Error" }); }
 });
 
 app.get("/api/my-team", async (req, res) => {
@@ -218,6 +220,7 @@ app.get("/api/my-team", async (req, res) => {
   } catch (err) { res.status(500).send({ message: "Server error" }); }
 });
 
+// --- OTHER UTILS ---
 app.get('/api/packages', async (req, res) => {
   try {
     const result = await Package.find();
@@ -265,6 +268,7 @@ app.put("/api/profile", async (req, res) => {
   } catch (err) { res.status(500).json({ message: "Error" }); }
 });
 
+/* ================= SERVER START ================= */
 const port = process.env.PORT || 5000;
 app.listen(port, () => console.log(`🚀 Server running on port ${port}`));
 
