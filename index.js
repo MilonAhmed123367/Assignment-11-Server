@@ -6,7 +6,7 @@ const cors = require("cors");
 
 const app = express();
 
-// ১. CORS কনফিগারেশন - ভেরসেল এবং লোকাল হোস্টের জন্য
+// ১. CORS কনফিগারেশন (সরাসরি এবং সহজ)
 app.use(cors({
   origin: ["http://localhost:5173", "https://assignment-11-server-git-main-milon-ahmeds-projects.vercel.app"],
   credentials: true,
@@ -15,14 +15,33 @@ app.use(cors({
 
 app.use(express.json());
 
-// প্রি-ফ্লাইট রিকোয়েস্ট হ্যান্ডলিং
-app.options("*", cors());
+// ২. ঝামেলাপূর্ণ app.options("*") বা app.options("/api/:path*") একদম বাদ দিন।
+// তার বদলে এই সিম্পল মিডলওয়্যারটি ব্যবহার করুন:
+app.use((req, res, next) => {
+  const allowedOrigins = ["http://localhost:5173", "https://assignment-11-server-git-main-milon-ahmeds-projects.vercel.app"];
+  const origin = req.headers.origin;
+
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header("Access-Control-Allow-Credentials", "true");
+
+  // প্রি-ফ্লাইট রিকোয়েস্টের জন্য সরাসরি রেসপন্স
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 
 /* ================= DB CONNECT ================= */
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
-  .catch((err) => console.error("❌ MongoDB Connection Error:", err));
+  .catch((err) => console.error(err));
 
 /* ================= SCHEMAS ================= */
 const userSchema = new mongoose.Schema({
@@ -30,13 +49,14 @@ const userSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   password: String,
   role: { type: String, enum: ["employee", "hr"] },
-  companyName: String,
-  companyLogo: String,
+  companyName: String, // HR এর জন্য
+  companyLogo: String, // HR এর জন্য
   packageLimit: { type: Number, default: 5 },
   currentEmployees: { type: Number, default: 0 },
   subscription: { type: String, default: "basic" },
   dateOfBirth: Date,
   profileImage: String,
+  // এমপ্লয়ি কোন কোন কোম্পানিতে আছে তার লিস্ট
   affiliations: [{
     companyName: String,
     hrEmail: String,
@@ -130,14 +150,13 @@ app.post("/api/google-register", async (req, res) => {
       affiliations: []
     });
 
-    const result = await newUser.save();
+    const result = await newUser.save(); // insertOne এর বদলে save()
     res.send(result);
   } catch (error) {
     res.status(500).send({ message: "Internal Server Error" });
   }
 });
-
-// --- ASSET MANAGEMENT ---
+// --- HR: ASSET MANAGEMENT ---
 app.post("/api/assets", async (req, res) => {
   const asset = new Asset({ ...req.body, availableQuantity: req.body.productQuantity });
   await asset.save();
@@ -148,124 +167,291 @@ app.get("/api/assets/hr/:email", async (req, res) => {
   try {
     const { search, type } = req.query;
     const email = req.params.email;
-    let query = { hrEmail: { $regex: new RegExp(`^${email}$`, "i") } };
 
-    if (search) query.productName = { $regex: search, $options: "i" };
-    if (type && type !== "All") query.productType = type;
+    let query = {
+      hrEmail: { $regex: new RegExp(`^${email}$`, "i") }
+    };
+
+    if (search) {
+      query.productName = { $regex: search, $options: "i" };
+    }
+
+    if (type && type !== "All") {
+      query.productType = type;
+    }
 
     const assets = await Asset.find(query);
     res.json(assets);
   } catch (err) {
-    res.status(500).json({ message: "Failed to fetch assets" });
+    res.status(500).json({ message: "Failed to fetch assets", error: err.message });
   }
 });
 
-// --- REQUESTS ---
 app.post("/api/requests", async (req, res) => {
   try {
-    const newRequest = new Request({ ...req.body, requestStatus: "pending", requestDate: new Date() });
+    const requestData = req.body;
+
+    const newRequest = new Request({
+      ...requestData,
+      requestStatus: "pending",
+      requestDate: new Date()
+    });
+
     const result = await newRequest.save();
     res.status(201).json(result);
   } catch (err) {
-    res.status(400).json({ message: "Failed to submit request" });
+    console.error("Request Error:", err);
+    res.status(400).json({ message: "Failed to submit request", error: err.message });
   }
 });
 
 app.post("/api/requests/:id/approve", async (req, res) => {
   try {
-    const request = await Request.findById(req.params.id);
+    const requestId = req.params.id;
+    const request = await Request.findById(requestId);
+
     if (!request) return res.status(404).json({ message: "Request not found" });
 
-    const hr = await User.findOne({ email: { $regex: new RegExp(`^${request.hrEmail}$`, "i") } });
-    const employee = await User.findOne({ email: { $regex: new RegExp(`^${request.requesterEmail}$`, "i") } });
+    const hr = await User.findOne({
+      email: { $regex: new RegExp(`^${request.hrEmail}$`, "i") }
+    });
+    const employee = await User.findOne({
+      email: { $regex: new RegExp(`^${request.requesterEmail}$`, "i") }
+    });
 
-    if (hr.currentEmployees >= hr.packageLimit) return res.status(400).json({ message: "Package limit reached!" });
+    if (!hr || !employee) {
+      return res.status(404).json({ message: "HR or Employee profile not found." });
+    }
 
-    const alreadyAffiliated = employee.affiliations?.some(aff => aff.hrEmail.toLowerCase() === hr.email.toLowerCase());
+    if (hr.currentEmployees >= hr.packageLimit) {
+      return res.status(400).json({ message: "Package limit reached!" });
+    }
+
+    const alreadyAffiliated = employee.affiliations?.some(
+      (aff) => aff.hrEmail.toLowerCase() === hr.email.toLowerCase()
+    );
 
     if (!alreadyAffiliated) {
       await Asset.findByIdAndUpdate(request.assetId, { $inc: { availableQuantity: -1 } });
-      await User.findOneAndUpdate({ email: employee.email }, {
-        $push: { affiliations: { companyName: hr.companyName, hrEmail: hr.email.toLowerCase() } }
-      });
-      await User.findOneAndUpdate({ email: hr.email }, { $inc: { currentEmployees: 1 } });
+
+      await User.findOneAndUpdate(
+        { email: employee.email },
+        {
+          $push: {
+            affiliations: {
+              companyName: hr.companyName,
+              hrEmail: hr.email.toLowerCase()
+            }
+          }
+        }
+      );
+
+      await User.findOneAndUpdate(
+        { email: hr.email },
+        { $inc: { currentEmployees: 1 } }
+      );
     }
 
     request.requestStatus = "approved";
     request.approvalDate = new Date();
     await request.save();
-    res.json({ message: "Approved successfully" });
-  } catch (err) { res.status(500).json({ message: "Error" }); }
+
+    res.json({ message: "Approved successfully", status: "approved" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
 });
 
 app.post("/api/requests/:id/reject", async (req, res) => {
   try {
-    await Request.findByIdAndUpdate(req.params.id, { $set: { requestStatus: "rejected" } });
-    res.json({ message: "Rejected" });
-  } catch (err) { res.status(500).json({ message: "Error" }); }
+    const requestId = req.params.id;
+
+    const updatedRequest = await Request.findByIdAndUpdate(
+      requestId,
+      {
+        $set: {
+          requestStatus: "rejected",
+          rejectionDate: new Date()
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedRequest) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    res.json({ message: "Request rejected successfully", data: updatedRequest });
+  } catch (err) {
+    console.error("Reject Error:", err);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
 });
 
-// --- DASHBOARD & TEAM ---
+// --- EMPLOYEE DASHBOARD ---
+
 app.get("/api/my-assets", async (req, res) => {
   try {
     const { email } = req.query;
-    const requests = await Request.find({ requesterEmail: { $regex: new RegExp(`^${email}$`, "i") } }).sort({ requestDate: -1 });
+    if (!email) return res.status(400).json({ message: "Email is required" });
+
+    const requests = await Request.find({
+      requesterEmail: { $regex: new RegExp(`^${email}$`, "i") }
+    }).sort({ requestDate: -1 });
+
     res.json(requests || []);
-  } catch (err) { res.status(500).json({ message: "Error" }); }
+  } catch (err) {
+    console.error("Error in /api/my-assets:", err);
+    res.status(500).json({
+      message: "Internal server error",
+      error: err.message
+    });
+  }
 });
 
+app.delete("/api/requests/:id", async (req, res) => {
+  try {
+    const result = await Request.findByIdAndDelete(req.params.id);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to delete request" });
+  }
+});
+
+// Return Asset
+app.post("/api/return/:id", async (req, res) => {
+  const request = await Request.findById(req.params.id);
+  if (request.assetType !== "Returnable") return res.status(400).json({ message: "Non-returnable item" });
+
+  request.requestStatus = "returned";
+  await request.save();
+  await Asset.findByIdAndUpdate(request.assetId, { $inc: { availableQuantity: 1 } });
+  res.json({ message: "Returned" });
+});
+
+// My Team List
 app.get("/api/my-team", async (req, res) => {
   try {
     const { email } = req.query;
     const currentUser = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, "i") } });
+
     if (!currentUser) return res.status(404).send({ message: "User not found" });
 
-    let hrEmail = currentUser.role === "hr" ? currentUser.email : currentUser.affiliations?.[0]?.hrEmail;
+    let hrEmail = "";
+    if (currentUser.role === "hr") {
+      hrEmail = currentUser.email;
+    } else {
+      hrEmail = currentUser.affiliations?.[0]?.hrEmail;
+    }
+
     if (!hrEmail) return res.json([]);
 
     const teamMembers = await User.find({
-      $or: [{ email: { $regex: new RegExp(`^${hrEmail}$`, "i") } }, { "affiliations.hrEmail": { $regex: new RegExp(`^${hrEmail}$`, "i") } }]
+      $or: [
+        { email: { $regex: new RegExp(`^${hrEmail}$`, "i") } },
+        { "affiliations.hrEmail": { $regex: new RegExp(`^${hrEmail}$`, "i") } }
+      ]
     }).select("-password");
-    res.json(teamMembers);
-  } catch (err) { res.status(500).send({ message: "Server error" }); }
-});
 
-// --- PACKAGES (FIXED) ---
+    res.json(teamMembers);
+  } catch (err) {
+    res.status(500).send({ message: "Server error" });
+  }
+});
 app.get('/api/packages', async (req, res) => {
   try {
     const result = await Package.find();
     res.json(result);
   } catch (err) {
-    res.status(500).json({ message: "Failed" });
+    res.status(500).json({ message: "Failed to fetch packages" });
   }
 });
 
 app.get("/api/me", async (req, res) => {
   try {
-    const user = await User.findOne({ email: { $regex: new RegExp(`^${req.query.email}$`, "i") } });
-    user ? res.json(user) : res.status(404).json({ message: "Not found" });
-  } catch (err) { res.status(500).json({ message: "Error" }); }
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const user = await User.findOne({
+      email: { $regex: new RegExp(`^${email}$`, "i") }
+    });
+
+    // const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch user data", error: err.message });
+  }
 });
 
-// Other basic routes
 app.get("/api/assets", async (req, res) => {
-  const assets = await Asset.find({ availableQuantity: { $gt: 0 } });
-  res.json(assets);
+  try {
+    const assets = await Asset.find({ availableQuantity: { $gt: 0 } });
+    res.json(assets);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch assets", error: err.message });
+  }
 });
+
+app.get("/api/requests", async (req, res) => {
+  try {
+    const { email } = req.query;
+    const query = email ? { hrEmail: email } : {};
+    const requests = await Request.find(query).sort({ requestDate: -1 });
+    res.json(requests);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch requests" });
+  }
+});
+
+app.get("/api/employees", async (req, res) => {
+  try {
+    const { hrEmail } = req.query;
+    const employees = await User.find({ "affiliations.hrEmail": hrEmail, role: "employee" });
+    res.json(employees);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch employees" });
+  }
+});
+
 
 app.put("/api/profile", async (req, res) => {
   try {
+    const { email } = req.query;
+    const { name, profileImage } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
     const result = await User.findOneAndUpdate(
-      { email: { $regex: new RegExp(`^${req.query.email}$`, "i") } },
-      { $set: req.body }, { new: true }
+      { email: { $regex: new RegExp(`^${email}$`, "i") } },
+      { $set: { name, profileImage } },
+      { new: true }
     );
-    res.json(result);
-  } catch (err) { res.status(500).json({ message: "Error" }); }
+
+    if (!result) {
+      return res.status(404).json({ message: "User not found in database" });
+    }
+
+    res.json({ success: true, message: "Profile updated in DB", data: result });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Internal server error" });
+  }
 });
 
 const port = process.env.PORT || 5000;
 if (process.env.NODE_ENV !== 'production') {
-    app.listen(port, () => console.log(`Server running on port ${port}`));
+  app.listen(port, () => console.log(`Server running on port ${port}`));
 }
 
 module.exports = app;
