@@ -6,7 +6,7 @@ const cors = require("cors");
 
 const app = express();
 
-const cors = require("cors");
+// কোন অপশন ছাড়া শুধু cors() দিলে ভেরসেল ডিফল্টভাবে সব এলাউ করে দেয়
 app.use(cors()); 
 app.use(express.json());
 
