@@ -6,24 +6,15 @@ const cors = require("cors");
 
 const app = express();
 
-// ১. একদম পাওয়ারফুল CORS হ্যান্ডলার (সব এরর বন্ধ করবে)
-app.use((req, res, next) => {
-  const allowedOrigins = ['http://localhost:5173', 'https://আপনার-ফ্রন্টএন্ড-লিঙ্ক.vercel.app'];
-  const origin = req.headers.origin;
-  
-  if (allowedOrigins.includes(origin) || !origin) {
-    res.setHeader('Access-Control-Allow-Origin', origin || '*');
-  }
-  
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  next();
-});
+app.use(cors({
+  origin: [
+    'http://localhost:5173', 
+    'https://assignment-11-server-git-main-milon-ahmeds-projects.vercel.app'
+  ],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
+}));
 
 app.use(express.json());
 
