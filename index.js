@@ -90,17 +90,27 @@ app.get("/", (req, res) => res.send("Server running perfectly..."));
 // --- AUTH ROUTES ---
 app.post("/api/register", async (req, res) => {
   try {
-    const { name, email, password, role, companyName, companyLogo, dateOfBirth } = req.body;
-    const hashed = await bcrypt.hash(password, 10);
-    const userData = { name, email, password: hashed, role, dateOfBirth };
+    const { name, email, role, companyName, companyLogo, dateOfBirth } = req.body;
+    
+    const userData = { 
+      name, 
+      email, 
+      role, 
+      dateOfBirth 
+    };
+
     if (role === "hr") {
       userData.companyName = companyName;
       userData.companyLogo = companyLogo;
     }
+
     const user = new User(userData);
     await user.save();
     res.json({ message: "Success", user });
-  } catch (err) { res.status(400).json({ message: err.message }); }
+  } catch (err) { 
+    console.error(err);
+    res.status(400).json({ message: err.message }); 
+  }
 });
 
 app.post("/api/login", async (req, res) => {
